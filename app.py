@@ -3,12 +3,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import openai
 import requests
+from io import BytesIO
 
 app = FastAPI()
 
 # Получаем API ключи из переменных окружения
 openai.api_key = os.getenv("OPENAI_API_KEY")  # Устанавливаем ключ OpenAI из переменной окружения
 currentsapi_key = os.getenv("CURRENTS_API_KEY")  # Устанавливаем ключ Currents API из переменной окружения
+imgbb_api_key = os.getenv("IMGBB_API_KEY")
 
 # Проверяем, что оба API ключа заданы, иначе выбрасываем ошибку
 if not openai.api_key or not currentsapi_key:
@@ -101,6 +103,37 @@ def generate_content(topic: str):
             size="1024x1024",
             quality="standard"
         )
+
+        responseImage = requests.get(image_url, timeout=10)
+        responseImage.raise_for_status()
+
+        # Определяем расширение
+        content_type = responseImage.headers.get("content-type", "").lower()
+        ext = "png"  # по умолчанию
+        if "jpg" in content_type or "jpeg" in content_type:
+            ext = "jpg"
+        elif "webp" in content_type:
+            ext = "webp"
+        elif "gif" in content_type:
+            ext = "gif"
+
+        # Загружаем в память
+        image_data = BytesIO(responseImage.content)
+
+        # 2. Загружаем на ImgBB
+        upload_response = requests.post(
+            "https://api.imgbb.com/1/upload",
+            data={
+                "key": imgbb_api_key,
+                "name": f"image.{ext}",
+                "expiration": 0,  # не удалять
+            },
+            files={"image": image_data.getvalue()}
+        )
+        upload_response.raise_for_status()
+
+        result = upload_response.json()
+        image_url = result["data"]["url"]
         
         # Возвращаем сгенерированный контент
         return {
