@@ -94,7 +94,7 @@ def generate_content(topic: str):
 
         image_prompt = f"{title}. {meta_description}"
 
-        image_url = openai.Image.create(
+        responseRaw = openai.Image.create(
             model="dall-e-3",
             prompt=f"Иллюстрация для статьи в Telegram на тему: {image_prompt}. "
                    "Изображение должно быть ярким, привлекательным и соответствовать теме. "
@@ -104,7 +104,8 @@ def generate_content(topic: str):
             quality="standard"
         )
 
-        responseImage = requests.get(image_url, timeout=10)
+        image_url_sas = responseRaw.data[0].url
+        responseImage = requests.get(image_url_sas, timeout=10)
         responseImage.raise_for_status()
 
         # Определяем расширение
