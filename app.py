@@ -92,57 +92,66 @@ def generate_content(topic: str):
             frequency_penalty=0.6
         ).choices[0].message.content.strip()
 
-        image_prompt = f"{title}. {meta_description}"
+        #------------------------------------------------------------------------------------------------------------------
 
-        responseRaw = openai.Image.create(
-            model="dall-e-3",
-            prompt=f"Иллюстрация для статьи в Telegram на тему: {image_prompt}. "
-                   "Изображение должно быть ярким, привлекательным и соответствовать теме. "
-                   "Стиль: цифровое искусство, подходящее для новостного канала.",
-            n=1,
-            size="1024x1024",
-            quality="standard"
-        )
+        # image_prompt = f"{title}. {meta_description}"
 
-        image_url_sas = responseRaw.data[0].url
-        responseImage = requests.get(image_url_sas, timeout=10)
-        responseImage.raise_for_status()
+        # responseRaw = openai.Image.create(
+        #     model="dall-e-3",
+        #     prompt=f"Иллюстрация для статьи в Telegram на тему: {image_prompt}. "
+        #            "Изображение должно быть ярким, привлекательным и соответствовать теме. "
+        #            "Стиль: цифровое искусство, подходящее для новостного канала.",
+        #     n=1,
+        #     size="1024x1024",
+        #     quality="standard"
+        # )
 
-        # Определяем расширение
-        content_type = responseImage.headers.get("content-type", "").lower()
-        ext = "png"  # по умолчанию
-        if "jpg" in content_type or "jpeg" in content_type:
-            ext = "jpg"
-        elif "webp" in content_type:
-            ext = "webp"
-        elif "gif" in content_type:
-            ext = "gif"
+        # image_url_sas = responseRaw.data[0].url
+        # responseImage = requests.get(image_url_sas, timeout=10)
+        # responseImage.raise_for_status()
 
-        # Загружаем в память
-        image_data = BytesIO(responseImage.content)
+        # # Определяем расширение
+        # content_type = responseImage.headers.get("content-type", "").lower()
+        # ext = "png"  # по умолчанию
+        # if "jpg" in content_type or "jpeg" in content_type:
+        #     ext = "jpg"
+        # elif "webp" in content_type:
+        #     ext = "webp"
+        # elif "gif" in content_type:
+        #     ext = "gif"
 
-        # 2. Загружаем на ImgBB
-        upload_response = requests.post(
-            "https://api.imgbb.com/1/upload",
-            data={
-                "key": imgbb_api_key,
-                "name": f"image.{ext}",
-                "expiration": 0,  # не удалять
-            },
-            files={"image": image_data.getvalue()}
-        )
-        upload_response.raise_for_status()
+        # # Загружаем в память
+        # image_data = BytesIO(responseImage.content)
 
-        result = upload_response.json()
-        image_url = result["data"]["url"]
+        # # 2. Загружаем на ImgBB
+        # upload_response = requests.post(
+        #     "https://api.imgbb.com/1/upload",
+        #     data={
+        #         "key": imgbb_api_key,
+        #         "name": f"image.{ext}",
+        #         "expiration": 0,  # не удалять
+        #     },
+        #     files={"image": image_data.getvalue()}
+        # )
+        # upload_response.raise_for_status()
+
+        # result = upload_response.json()
+        # image_url = result["data"]["url"]
         
+        #------------------------------------------------------------------------------------------------------------------
         # Возвращаем сгенерированный контент
+        # return {
+        #     "title": title,
+        #     "meta_description": meta_description,
+        #     "post_content": post_content,
+        #     "image_url": image_url,
+        #     "image_prompt": image_prompt,
+        # }
+
         return {
             "title": title,
             "meta_description": meta_description,
-            "post_content": post_content,
-            "image_url": image_url,
-            "image_prompt": image_prompt
+            "post_content": post_content
         }
     
     except Exception as e:
