@@ -1,20 +1,16 @@
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import openai
 import requests
-from io import BytesIO
 
 app = FastAPI()
 
 # Получаем API ключи из переменных окружения
-openai.api_key = os.getenv("OPENAI_API_KEY")  # Устанавливаем ключ OpenAI из переменной окружения
 currentsapi_key = os.getenv("CURRENTS_API_KEY")  # Устанавливаем ключ Currents API из переменной окружения
-imgbb_api_key = os.getenv("IMGBB_API_KEY")
 
-# Проверяем, что оба API ключа заданы, иначе выбрасываем ошибку
-if not openai.api_key or not currentsapi_key:
-    raise ValueError("Переменные окружения OPENAI_API_KEY и CURRENTS_API_KEY должны быть установлены")
+# Проверяем, что API ключ задан, иначе выбрасываем ошибку
+if not currentsapi_key:
+    raise ValueError("Переменная окружения CURRENTS_API_KEY должна быть установлена")
 
 class Topic(BaseModel):
     topic: str  # Модель данных для получения темы в запросе
@@ -43,122 +39,10 @@ def get_recent_news(topic: str):
 # Функция для генерации контента на основе темы и новостей
 def generate_content(topic: str):
     recent_news = get_recent_news(topic)  # Получаем последние новости по теме
-
-    try:
-        # Генерация заголовка для статьи
-        title = openai.ChatCompletion.create(
-            model="gpt-4o-mini",  # Используем модель GPT-4o-mini
-            messages=[{
-                "role": "user", 
-                "content": f"Придумайте привлекательный и точный заголовок для статьи на тему '{topic}', с учётом актуальных новостей:\n{recent_news}. Заголовок должен быть интересным и ясно передавать суть темы."
-            }],
-            max_tokens=20,  # Ограничиваем длину ответа
-            temperature=0.5,  # Умеренная случайность
-            stop=["\n"]  # Прерывание на новой строке
-        ).choices[0].message.content.strip()
-
-        # Генерация мета-описания для статьи
-        meta_description = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[{
-                "role": "user", 
-                "content": f"Напишите мета-описание для статьи с заголовком: '{title}'. Оно должно быть полным, информативным и содержать основные ключевые слова."
-            }],
-            max_tokens=30,  # Увеличиваем лимит токенов для полного ответа
-            temperature=0.5,
-            stop=["."]
-        ).choices[0].message.content.strip()
-
-        # Генерация полного контента статьи
-        post_content = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[{
-                "role": "user", 
-                "content": f"""Напишите подробную статью на тему '{topic}', используя последние новости:\n{recent_news}. 
-                Статья должна быть:
-                1. Информативной и логичной
-                2. Содержать не менее 1500 символов
-                3. Иметь четкую структуру с подзаголовками
-                4. Включать анализ текущих трендов
-                5. Иметь вступление, основную часть и заключение
-                6. Включать примеры из актуальных новостей
-                7. Каждый абзац должен быть не менее 3-4 предложений
-                8. Текст должен быть легким для восприятия и содержательным
-                9. Содержать не более 3000 символов
-                10.Структура текста должна определяться отступами и шрифтом. Заголовки высшего уровня должны быть набраны более жирным текстом.
-                11.В тексте не должно быть управляющих символов, типа '#'. Это должен быть plain текст"""
-            }],
-            max_tokens=1500,  # Лимит токенов для развернутого текста
-            temperature=0.5,
-            presence_penalty=0.6,  # Штраф за повторение фраз
-            frequency_penalty=0.6
-        ).choices[0].message.content.strip()
-
-        #------------------------------------------------------------------------------------------------------------------
-
-        # image_prompt = f"{title}. {meta_description}"
-
-        # responseRaw = openai.Image.create(
-        #     model="dall-e-3",
-        #     prompt=f"Иллюстрация для статьи в Telegram на тему: {image_prompt}. "
-        #            "Изображение должно быть ярким, привлекательным и соответствовать теме. "
-        #            "Стиль: цифровое искусство, подходящее для новостного канала.",
-        #     n=1,
-        #     size="1024x1024",
-        #     quality="standard"
-        # )
-
-        # image_url_sas = responseRaw.data[0].url
-        # responseImage = requests.get(image_url_sas, timeout=10)
-        # responseImage.raise_for_status()
-
-        # # Определяем расширение
-        # content_type = responseImage.headers.get("content-type", "").lower()
-        # ext = "png"  # по умолчанию
-        # if "jpg" in content_type or "jpeg" in content_type:
-        #     ext = "jpg"
-        # elif "webp" in content_type:
-        #     ext = "webp"
-        # elif "gif" in content_type:
-        #     ext = "gif"
-
-        # # Загружаем в память
-        # image_data = BytesIO(responseImage.content)
-
-        # # 2. Загружаем на ImgBB
-        # upload_response = requests.post(
-        #     "https://api.imgbb.com/1/upload",
-        #     data={
-        #         "key": imgbb_api_key,
-        #         "name": f"image.{ext}",
-        #         "expiration": 0,  # не удалять
-        #     },
-        #     files={"image": image_data.getvalue()}
-        # )
-        # upload_response.raise_for_status()
-
-        # result = upload_response.json()
-        # image_url = result["data"]["url"]
-        
-        #------------------------------------------------------------------------------------------------------------------
-        # Возвращаем сгенерированный контент
-        # return {
-        #     "title": title,
-        #     "meta_description": meta_description,
-        #     "post_content": post_content,
-        #     "image_url": image_url,
-        #     "image_prompt": image_prompt,
-        # }
-
-        return {
-            "title": title,
-            "meta_description": meta_description,
-            "post_content": post_content
-        }
-    
-    except Exception as e:
-        # Обрабатываем ошибки генерации
-        raise HTTPException(status_code=500, detail=f"Ошибка при генерации контента: {str(e)}")
+    return {
+            "topic": topic,
+            "recent_news": recent_news
+            }
 
 @app.post("/generate-post")
 async def generate_post_api(topic: Topic):
